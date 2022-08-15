@@ -13,14 +13,15 @@ use winit::{
 pub type CB<D> = fn(&mut D);
 pub type CBI<D, I> = fn(&mut D, I);
 
-/// Executes the internal function if $self.$field is Some(_)
+/// Executes the internal function if `$self.$field` is Some(_)
+#[macro_export]
 macro_rules! option_exec {
     ($self:ident.$($field:ident).+) => {
         if let Some(callback) = &mut $self.$( $field ).+ {
             callback(&mut $self.data);
         }
     };
-    ($self:ident.$($field:ident).+, input=$input:ident) => {
+    ($self:ident.$($field:ident).+, input=$input:expr) => {
         if let Some(callback) = &mut $self.$( $field ).+ {
             callback(&mut $self.data, $input);
         }
@@ -32,15 +33,37 @@ macro_rules! option_exec {
     };
 }
 
+/// Implements a function that changes the `$self.$field` option to Some(callback)
+#[macro_export]
 macro_rules! add_callback {
-    ($self:ident.$field:ident) => {
-        pub fn $field(&mut $self, callback: CB<D>) {
+    ($self:ident.$field:ident $(,)?) => {
+        add_callback!($self.$field, name=$field);
+    };
+    ($self:ident.$field:ident, input=$type:ty $(,)?) => {
+        add_callback!($self.$field, input=$type, name=$field);
+    };
+    ($self:ident.$field:ident, name=$name:ident $(,)?) => {
+        pub fn $name(&mut $self, callback: CB<D>) {
             $self.$field = Some(callback);
         }
     };
-    ($self:ident.$field:ident, $type:ty) => {
-        pub fn $field(&mut $self, callback: CBI<D, $type>) {
+    ($self:ident.$field:ident, input=$type:ty, name=$name:ident $(,)?) => {
+        pub fn $name(&mut $self, callback: CBI<D, $type>) {
             $self.$field = Some(callback);
+        }
+    };
+}
+
+#[macro_export]
+/// Implements a function that inserts a callback into `$self.$field`
+/// (assumes `$self.$field` implements the hashmap `insert` function)
+macro_rules! insert_callback {
+    ($self:ident.$field:ident, keys=($( $key:ident: $keytype:ty ),+) $(,)?) => {
+        insert_callback!($self.$field, keys=$( $key: $keytype ),+, name=$field);
+    };
+    ($self:ident.$field:ident, keys=($( $key:ident: $keytype:ty ),+), name=$name:ident $(,)?) => {
+        pub fn $name(&mut $self, $( $key: $keytype ),+, callback: CB<D>) {
+            $self.$field.insert(($( $key ),+), callback);
         }
     };
 }
@@ -49,6 +72,7 @@ pub struct EventHelper<D> {
     pub data: D,
     // stored
     keys_held: AHashSet<VirtualKeyCode>,
+    mouse_inputs_held: AHashSet<MouseButton>,
     // global
     suspended: Option<CB<D>>,
     resumed: Option<CB<D>>,
@@ -57,13 +81,13 @@ pub struct EventHelper<D> {
     cursor_entered: Option<CB<D>>,
     cursor_left: Option<CB<D>>,
     cursor_moved: Option<CBI<D, PhysicalPosition<f64>>>,
-    mouse_input: AHashMap<(MouseButton, ElementState), CB<D>>,
+    mouse_inputs: AHashMap<(MouseButton, ElementState), CB<D>>,
     mouse_input_any: Option<CBI<D, (MouseButton, ElementState)>>,
     resized: Option<CBI<D, PhysicalSize<u32>>>,
     moved: Option<CBI<D, PhysicalPosition<i32>>>,
     focused: Option<CBI<D, bool>>,
     // device
-    key: AHashMap<(VirtualKeyCode, ElementState), CB<D>>,
+    keys: AHashMap<(VirtualKeyCode, ElementState), CB<D>>,
     key_any: Option<CBI<D, (VirtualKeyCode, ElementState)>>,
     raw_mouse_delta: Option<CBI<D, (f64, f64)>>,
     raw_mouse_scroll: Option<CBI<D, MouseScrollDelta>>,
@@ -74,27 +98,25 @@ impl<D> EventHelper<D> {
         EventHelper {
             data,
             keys_held: AHashSet::new(),
+            mouse_inputs_held: AHashSet::new(),
             suspended: None,
             resumed: None,
             close_requested: None,
             cursor_entered: None,
             cursor_left: None,
             cursor_moved: None,
-            mouse_input: AHashMap::new(),
+            mouse_inputs: AHashMap::new(),
             mouse_input_any: None,
             resized: None,
             moved: None,
             focused: None,
-            key: AHashMap::new(),
+            keys: AHashMap::new(),
             key_any: None,
             raw_mouse_delta: None,
             raw_mouse_scroll: None,
         }
     }
 
-    // TODO: benchmark inlining
-    // currently it is set to be inlined because there is only a single call site,
-    // but it has not been benchmarked
     #[inline]
     pub fn update<'a, E>(&mut self, event: &Event<'a, E>) -> bool {
         match event {
@@ -112,18 +134,26 @@ impl<D> EventHelper<D> {
         false
     }
 
-    // TODO: benchmark inlining
     #[inline]
     fn update_window_event(&mut self, event: &WindowEvent) {
         match event {
             &WindowEvent::MouseInput { button, state, .. } => {
-                option_exec!(self, { self.mouse_input.get_mut(&(button, state)) });
+                match state {
+                    ElementState::Pressed => self.mouse_inputs_held.insert(button),
+                    ElementState::Released => self.mouse_inputs_held.remove(&button),
+                };
+                option_exec!(self.mouse_input_any, input = (button, state));
+                option_exec!(self, { self.mouse_inputs.get_mut(&(button, state)) });
             }
             &WindowEvent::CursorMoved { position, .. } => {
                 option_exec!(self.cursor_moved, input = position);
             }
-            &WindowEvent::Resized(size) => option_exec!(self.resized, input = size),
-            &WindowEvent::Moved(position) => option_exec!(self.moved, input = position),
+            &WindowEvent::Resized(size) => {
+                option_exec!(self.resized, input = size);
+            }
+            &WindowEvent::Moved(position) => {
+                option_exec!(self.moved, input = position);
+            }
             &WindowEvent::Focused(focus) => option_exec!(self.focused, input = focus),
             &WindowEvent::CursorEntered { .. } => option_exec!(self.cursor_entered),
             &WindowEvent::CursorLeft { .. } => option_exec!(self.cursor_left),
@@ -132,7 +162,6 @@ impl<D> EventHelper<D> {
         }
     }
 
-    // TODO: benchmark inlining
     #[inline]
     fn update_device_event(&mut self, event: &DeviceEvent) {
         match event {
@@ -142,11 +171,12 @@ impl<D> EventHelper<D> {
                 ..
             }) => {
                 if let Some(key) = virtual_keycode {
+                    option_exec!(self.key_any, input = (key, state));
                     match state {
                         ElementState::Pressed => self.keys_held.insert(key),
                         ElementState::Released => self.keys_held.remove(&key),
                     };
-                    option_exec!(self, { self.key.get_mut(&(key, state)) });
+                    option_exec!(self, { self.keys.get_mut(&(key, state)) });
                 }
             }
             &DeviceEvent::MouseMotion { delta } => {
@@ -159,50 +189,53 @@ impl<D> EventHelper<D> {
         }
     }
 
-    /// Returns true when a given key is being held
+    /// Returns true when a given key is pressed
     pub fn key_held(&self, key: VirtualKeyCode) -> bool {
         self.keys_held.contains(&key)
     }
 
-    /// Retreives all keys currently being held
+    /// Retrieves all keys currently pressed
     pub fn keys_held(&self) -> impl Iterator<Item = &VirtualKeyCode> + '_ {
         self.keys_held.iter()
     }
 
-    /// Adds a keyboard callback and returns true if a callback was already linked
-    pub fn keyboard(&mut self, key: VirtualKeyCode, state: ElementState, callback: CB<D>) -> bool {
-        self.key.insert((key, state), callback).is_some()
+    /// Returns true when a given mouse button is pressed
+    pub fn mouse_input_held(&self, button: MouseButton) -> bool {
+        self.mouse_inputs_held.contains(&button)
     }
 
-    pub fn keyboard_any(&mut self, callback: CBI<D, (VirtualKeyCode, ElementState)>) {
-        self.key_any = Some(callback);
+    /// Retrieves all mouse buttons currently pressed
+    pub fn mouse_inputs_held(&self) -> impl Iterator<Item = &MouseButton> + '_ {
+        self.mouse_inputs_held.iter()
     }
 
-    /// Adds a mouse callback and returns true if a callback was already linked
-    pub fn mouse(
-        &mut self,
-        button: MouseButton,
-        state: ElementState,
-        callback: CB<D>,
-    ) -> bool {
-        self.mouse_input.insert((button, state), callback).is_some()
-    }
-
-    pub fn mouse_any(&mut self, callback: CBI<D, (MouseButton, ElementState)>) {
-        self.mouse_input_any = Some(callback);
-    }
-
+    insert_callback!(
+        self.keys,
+        keys = (key: VirtualKeyCode, state: ElementState),
+        name = keyboard,
+    );
+    insert_callback!(
+        self.mouse_inputs,
+        keys = (button: MouseButton, state: ElementState),
+        name = mouse_input,
+    );
+    add_callback!(
+        self.key_any,
+        input = (VirtualKeyCode, ElementState),
+        name = keyboard_any,
+    );
+    add_callback!(self.mouse_input_any, input = (MouseButton, ElementState));
     add_callback!(self.suspended);
     add_callback!(self.resumed);
     add_callback!(self.cursor_entered);
     add_callback!(self.cursor_left);
     add_callback!(self.close_requested);
-    add_callback!(self.cursor_moved, PhysicalPosition<f64>);
-    add_callback!(self.resized, PhysicalSize<u32>);
-    add_callback!(self.moved, PhysicalPosition<i32>);
-    add_callback!(self.focused, bool);
-    add_callback!(self.raw_mouse_delta, (f64, f64));
-    add_callback!(self.raw_mouse_scroll, MouseScrollDelta);
+    add_callback!(self.cursor_moved, input=PhysicalPosition<f64>);
+    add_callback!(self.resized, input=PhysicalSize<u32>);
+    add_callback!(self.moved, input=PhysicalPosition<i32>);
+    add_callback!(self.focused, input = bool);
+    add_callback!(self.raw_mouse_delta, input = (f64, f64));
+    add_callback!(self.raw_mouse_scroll, input = MouseScrollDelta);
 }
 
 #[cfg(feature = "std")]
