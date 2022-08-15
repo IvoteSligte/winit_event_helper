@@ -10,7 +10,9 @@ use winit::{
     },
 };
 
+/// Callback function with no inputs
 pub type CB<D> = fn(&mut D);
+/// Callback function with one input
 pub type CBI<D, I> = fn(&mut D, I);
 
 /// Executes the internal function if `$self.$field` is Some(_)
@@ -68,6 +70,7 @@ macro_rules! insert_callback {
     };
 }
 
+/// A struct holding all the callback functions and user function data
 pub struct EventHelper<D> {
     pub data: D,
     // stored
