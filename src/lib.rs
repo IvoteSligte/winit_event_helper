@@ -12,6 +12,7 @@
 //! 
 //! ```rust
 //! 
+//! use winit_event_helper::EventHelper;
 //! use winit::event::{ElementState, VirtualKeyCode, MouseButton};
 //! use winit::event_loop::{EventLoop, ControlFlow};
 //! 
