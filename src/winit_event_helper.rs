@@ -1,6 +1,4 @@
-#[cfg(feature = "std")]
 use std::ops::{Deref, DerefMut};
-
 use ahash::{AHashMap, AHashSet};
 use winit::{
     dpi::{PhysicalPosition, PhysicalSize},
@@ -11,26 +9,26 @@ use winit::{
 };
 
 /// Callback function with no inputs
-pub type CB<D> = fn(&mut D);
+pub type CB<D> = fn(&mut EventHelper<D>);
 /// Callback function with one input
-pub type CBI<D, I> = fn(&mut D, I);
+pub type CBI<D, I> = fn(&mut EventHelper<D>, I);
 
 /// Executes the internal function if `$self.$field` is Some(_)
 #[macro_export]
 macro_rules! option_exec {
     ($self:ident.$($field:ident).+) => {
         if let Some(callback) = &mut $self.$( $field ).+ {
-            callback(&mut $self.data);
+            callback($self);
         }
     };
     ($self:ident.$($field:ident).+, input=$input:expr) => {
         if let Some(callback) = &mut $self.$( $field ).+ {
-            callback(&mut $self.data, $input);
+            callback($self, $input);
         }
     };
     ($self:ident, $getter:expr) => {
         if let Some(callback) = $getter {
-            callback(&mut $self.data);
+            callback($self);
         }
     };
 }
@@ -71,8 +69,15 @@ macro_rules! insert_callback {
 }
 
 /// A struct holding all the callback functions and user function data
+/// 
+/// The EventHelper struct has several helper functions:
+/// - `key_held` and `mouse_input_held` return true if the given key/button is being held
+/// - `keys_held` and `mouse_inputs_held` return all keys/buttons currently being held
+/// - `call_after` calls the given function the next time `update` is called
 pub struct EventHelper<D> {
+    // misc
     pub data: D,
+    call_after: Vec<CB<D>>,
     // stored
     keys_held: AHashSet<VirtualKeyCode>,
     mouse_inputs_held: AHashSet<MouseButton>,
@@ -100,6 +105,7 @@ impl<D> EventHelper<D> {
     pub fn new(data: D) -> EventHelper<D> {
         EventHelper {
             data,
+            call_after: Vec::new(),
             keys_held: AHashSet::new(),
             mouse_inputs_held: AHashSet::new(),
             suspended: None,
@@ -122,6 +128,11 @@ impl<D> EventHelper<D> {
 
     #[inline]
     pub fn update<'a, E>(&mut self, event: &Event<'a, E>) -> bool {
+        for cb in self.call_after.clone().iter().rev() {
+            cb(self);
+        }
+        self.call_after.clear();
+        
         match event {
             Event::WindowEvent { event, .. } => {
                 self.update_window_event(event);
@@ -192,24 +203,29 @@ impl<D> EventHelper<D> {
         }
     }
 
-    /// Returns true when a given key is pressed
+    /// Returns true if a given key is pressed
     pub fn key_held(&self, key: VirtualKeyCode) -> bool {
         self.keys_held.contains(&key)
     }
 
-    /// Retrieves all keys currently pressed
+    /// Returns all keys currently pressed
     pub fn keys_held(&self) -> impl Iterator<Item = &VirtualKeyCode> + '_ {
         self.keys_held.iter()
     }
 
-    /// Returns true when a given mouse button is pressed
+    /// Returns true if a given mouse button is pressed
     pub fn mouse_input_held(&self, button: MouseButton) -> bool {
         self.mouse_inputs_held.contains(&button)
     }
 
-    /// Retrieves all mouse buttons currently pressed
+    /// Returns all mouse buttons currently pressed
     pub fn mouse_inputs_held(&self) -> impl Iterator<Item = &MouseButton> + '_ {
         self.mouse_inputs_held.iter()
+    }
+
+    /// Calls the given function before the next event is handled
+    pub fn call_after(&mut self, callback: CB<D>) {
+        self.call_after.push(callback);
     }
 
     insert_callback!(
@@ -241,7 +257,6 @@ impl<D> EventHelper<D> {
     add_callback!(self.raw_mouse_scroll, input = MouseScrollDelta);
 }
 
-#[cfg(feature = "std")]
 impl<D> Deref for EventHelper<D> {
     type Target = D;
 
@@ -250,7 +265,6 @@ impl<D> Deref for EventHelper<D> {
     }
 }
 
-#[cfg(feature = "std")]
 impl<D> DerefMut for EventHelper<D> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.data
