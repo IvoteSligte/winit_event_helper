@@ -51,4 +51,4 @@
 /// mod that contains the [EventHelper] struct and several macros
 pub mod winit_event_helper;
 
-pub use winit_event_helper::EventHelper;
+pub use ::winit_event_helper::EventHelper;
