@@ -1,6 +1,6 @@
 [package]
 name = "winit_event_helper"
-version = "0.2.0"
+version = "0.2.1"
 edition = "2021"
 description = "Easy winit event handling using callback functions."
 license = "MIT"
