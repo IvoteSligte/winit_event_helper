@@ -5,7 +5,6 @@ edition = "2021"
 description = "Easy winit event handling using callback functions."
 license = "MIT"
 repository = "https://github.com/IvoteSligte/winit_event_helper/"
-categories = ["no-std"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
