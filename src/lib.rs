@@ -10,8 +10,7 @@
 //! 
 //! ## Example (using the EventHelper struct)
 //! 
-//! ```rust
-//! 
+//! ```
 //! use winit::event::{ElementState, VirtualKeyCode, MouseButton};
 //! use winit::event_loop::{EventLoop, ControlFlow};
 //! 
