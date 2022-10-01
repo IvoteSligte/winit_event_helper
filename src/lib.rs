@@ -11,6 +11,7 @@
 //! ## Example (using the EventHelper struct)
 //! 
 //! ```
+//! use winit_event_helper::EventHelper;
 //! use winit::event::{ElementState, VirtualKeyCode, MouseButton};
 //! use winit::event_loop::{EventLoop, ControlFlow};
 //! 
@@ -50,4 +51,4 @@
 /// mod that contains the [EventHelper] struct and several macros
 pub mod winit_event_helper;
 
-pub use winit_event_helper::EventHelper;
+pub use self::winit_event_helper::EventHelper;
