@@ -7,6 +7,7 @@
 - Renamed `raw_mouse_delta` to `device_mouse_motion`
 - Renamed `raw_mouse_scroll` to `device_mouse_wheel`
 - `key_held` and `button_held` now return how long the element has been held for (or None)
+- Removed macros
 
 ### Non-breaking
 
