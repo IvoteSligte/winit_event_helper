@@ -46,7 +46,7 @@
 //!             return;
 //!         }
 //!
-//!         // returns true if the given key is being held
+//!         // returns true when the given key is being held
 //!         if eh.key_held(VirtualKeyCode::Escape) {
 //!             *control_flow = ControlFlow::Exit;
 //!         }
