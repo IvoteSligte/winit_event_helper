@@ -46,8 +46,8 @@
 //!             return;
 //!         }
 //!
-//!         // returns true when the given key is being held
-//!         if eh.key_held(VirtualKeyCode::Escape) {
+//!         // returns the time the key has been held for when held, or None
+//!         if eh.key_held(VirtualKeyCode::Escape).is_some() {
 //!             *control_flow = ControlFlow::Exit;
 //!         }
 //! 
