@@ -19,8 +19,8 @@ or the `Callbacks` struct.
 ## Example
 
 ```rust
-use winit_event_helper::EventHelper;
-use winit::event::{ElementState, VirtualKeyCode, MouseButton};
+use winit_event_helper::{EventHelper, ElementState2};
+use winit::event::{VirtualKeyCode, MouseButton};
 use winit::event_loop::{EventLoop, ControlFlow};
 use winit::window::WindowBuilder;
 
@@ -35,11 +35,11 @@ fn main() {
     let mut eh = EventHelper::new( Data { counter: 0 } );
     
     // is called whenever the given mouse button is in the given state and the window is focused
-    eh.window_mouse_input(MouseButton::Left, ElementState::Pressed, |data| data.counter += 1);
+    eh.window_mouse_input(MouseButton::Left, ElementState2::Pressed, |data| data.counter += 1);
     
     // is called whenever a keyboard key is pressed and the window is focused
     eh.window_keyboard_input_any(|_, (keycode, state)| {
-        if (state == ElementState::Pressed) {
+        if (state == ElementState2::Pressed) {
             println!("{:?}", keycode);
         }
     });
@@ -51,8 +51,8 @@ fn main() {
             return;
         }
 
-        // returns true if the given key is being held
-        if eh.key_held(VirtualKeyCode::Escape) {
+        // returns true when the given key goes from 'not pressed' to 'pressed'
+        if eh.key_pressed(VirtualKeyCode::Escape) {
             *control_flow = ControlFlow::Exit;
         }
 
