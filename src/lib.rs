@@ -103,6 +103,13 @@ bitflags! {
     }
 }
 
+#[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
+pub enum ElementState2 {
+    Pressed,
+    Held,
+    Released,
+}
+
 /// A struct for all callback functions, each corresponding to a winit event
 #[derive(Clone)]
 pub struct Callbacks<D> {
@@ -115,10 +122,10 @@ pub struct Callbacks<D> {
     resumed: CB<D>,
     // device
     device_added: CB<D>,
-    device_button_any: CBI<D, (ButtonId, ElementState)>,
-    device_button: AHashMap<(ButtonId, ElementState), CB<D>>,
-    device_key_any: CBI<D, (VirtualKeyCode, ElementState)>,
-    device_key: AHashMap<(VirtualKeyCode, ElementState), CB<D>>,
+    device_button_any: CBI<D, (ButtonId, ElementState2)>,
+    device_button: AHashMap<(ButtonId, ElementState2), CB<D>>,
+    device_key_any: CBI<D, (VirtualKeyCode, ElementState2)>,
+    device_key: AHashMap<(VirtualKeyCode, ElementState2), CB<D>>,
     device_motion: CBI<D, (AxisId, f64)>,
     device_mouse_motion: CBI<D, (f64, f64)>,
     device_mouse_wheel: CBI<D, MouseScrollDelta>,
@@ -136,11 +143,11 @@ pub struct Callbacks<D> {
     window_hovered_file: CBI<D, PathBuf>,
     window_hovered_file_canceled: CB<D>,
     window_ime: CBI<D, Ime>,
-    window_keyboard_input_any: CBI<D, (VirtualKeyCode, ElementState)>,
-    window_keyboard_input: AHashMap<(VirtualKeyCode, ElementState), CB<D>>,
+    window_keyboard_input_any: CBI<D, (VirtualKeyCode, ElementState2)>,
+    window_keyboard_input: AHashMap<(VirtualKeyCode, ElementState2), CB<D>>,
     window_modifiers_changed: CBI<D, ModifiersState>,
-    window_mouse_input_any: CBI<D, (MouseButton, ElementState)>,
-    window_mouse_input: AHashMap<(MouseButton, ElementState), CB<D>>,
+    window_mouse_input_any: CBI<D, (MouseButton, ElementState2)>,
+    window_mouse_input: AHashMap<(MouseButton, ElementState2), CB<D>>,
     window_mouse_wheel: CBI<D, (MouseScrollDelta, TouchPhase)>,
     window_moved: CBI<D, PhysicalPosition<i32>>,
     window_occluded: CBI<D, bool>,
@@ -321,6 +328,7 @@ impl<D> EventHelper<D> {
                 if let Some(key) = virtual_keycode {
                     #[cfg(feature = "save_device_inputs")]
                     self.update_keys_held(key, state);
+                    let state = self.convert_element_state_key(state, key);
                     (self.callbacks.device_key_any)(self, (key, state));
                     if let Some(func) = self.callbacks.device_key.get_mut(&(key, state)) {
                         func(self);
@@ -347,16 +355,17 @@ impl<D> EventHelper<D> {
                 (self.callbacks.device_motion)(self, (axis, value));
             }
             &DeviceEvent::Button { button, state } => {
+                let mouse_button = match button {
+                    0 => MouseButton::Left,
+                    1 => MouseButton::Middle,
+                    2 => MouseButton::Right,
+                    _ => MouseButton::Other(button as u16),
+                };
                 #[cfg(feature = "save_device_inputs")]
-                {
-                    let button = match button {
-                        0 => MouseButton::Left,
-                        1 => MouseButton::Middle,
-                        2 => MouseButton::Right,
-                        _ => MouseButton::Other(button as u16),
-                    };
-                    self.update_buttons_held(button, state);
-                }
+                self.update_buttons_held(mouse_button, state);
+
+                let state = self.convert_element_state_button(state, mouse_button);
+
                 if let Some(func) = self.callbacks.device_button.get_mut(&(button, state)) {
                     func(self);
                 }
@@ -386,6 +395,7 @@ impl<D> EventHelper<D> {
             &WindowEvent::MouseInput { button, state, .. } => {
                 #[cfg(not(feature = "save_device_inputs"))]
                 self.update_buttons_held(button, state);
+                let state = self.convert_element_state_button(state, button);
                 (self.callbacks.window_mouse_input_any)(self, (button, state));
                 if let Some(func) = self.callbacks.window_mouse_input.get_mut(&(button, state)) {
                     func(self);
@@ -427,6 +437,7 @@ impl<D> EventHelper<D> {
                 if let Some(key) = virtual_keycode {
                     #[cfg(not(feature = "save_device_inputs"))]
                     self.update_keys_held(key, state);
+                    let state = self.convert_element_state_key(state, key);
                     if let Some(func) = self.callbacks.window_keyboard_input.get_mut(&(key, state))
                     {
                         func(self);
@@ -467,6 +478,22 @@ impl<D> EventHelper<D> {
             &WindowEvent::ScaleFactorChanged { scale_factor, .. } => {
                 (self.callbacks.window_scale_factor_changed)(self, scale_factor);
             }
+        }
+    }
+
+    fn convert_element_state_key(&self, winit_state: ElementState, key: VirtualKeyCode) -> ElementState2 {
+        match winit_state {
+            ElementState::Pressed if self.key_pressed(key) => ElementState2::Pressed,
+            ElementState::Pressed => ElementState2::Held,
+            ElementState::Released => ElementState2::Released,
+        }
+    }
+
+    fn convert_element_state_button(&self, winit_state: ElementState, button: MouseButton) -> ElementState2 {
+        match winit_state {
+            ElementState::Pressed if self.button_pressed(button) => ElementState2::Pressed,
+            ElementState::Pressed => ElementState2::Held,
+            ElementState::Released => ElementState2::Released,
         }
     }
 
@@ -609,24 +636,24 @@ impl<D> EventHelper<D> {
     }
 
     /// Callback is called when an event with the given button and state is received
-    pub fn device_button(&mut self, button: u32, state: ElementState, callback: CB<D>) {
+    pub fn device_button(&mut self, button: u32, state: ElementState2, callback: CB<D>) {
         self.callbacks
             .device_button
             .insert((button, state), callback);
     }
 
     /// Callback is called for any button/state combination
-    pub fn device_button_any(&mut self, callback: CBI<D, (u32, ElementState)>) {
+    pub fn device_button_any(&mut self, callback: CBI<D, (u32, ElementState2)>) {
         self.callbacks.device_button_any = callback;
     }
 
     /// Callback is called when an event with the given key and state is received
-    pub fn device_key(&mut self, key: VirtualKeyCode, state: ElementState, callback: CB<D>) {
+    pub fn device_key(&mut self, key: VirtualKeyCode, state: ElementState2, callback: CB<D>) {
         self.callbacks.device_key.insert((key, state), callback);
     }
 
     /// Callback is called for any key/state combination
-    pub fn device_key_any(&mut self, callback: CBI<D, (VirtualKeyCode, ElementState)>) {
+    pub fn device_key_any(&mut self, callback: CBI<D, (VirtualKeyCode, ElementState2)>) {
         self.callbacks.device_key_any = callback;
     }
 
@@ -722,7 +749,7 @@ impl<D> EventHelper<D> {
     pub fn window_keyboard_input(
         &mut self,
         key: VirtualKeyCode,
-        state: ElementState,
+        state: ElementState2,
         callback: CB<D>,
     ) {
         self.callbacks
@@ -731,7 +758,7 @@ impl<D> EventHelper<D> {
     }
 
     /// Callback is called for any key/state combination
-    pub fn window_keyboard_input_any(&mut self, callback: CBI<D, (VirtualKeyCode, ElementState)>) {
+    pub fn window_keyboard_input_any(&mut self, callback: CBI<D, (VirtualKeyCode, ElementState2)>) {
         self.callbacks.window_keyboard_input_any = callback;
     }
 
@@ -743,7 +770,7 @@ impl<D> EventHelper<D> {
     pub fn window_mouse_input(
         &mut self,
         button: MouseButton,
-        state: ElementState,
+        state: ElementState2,
         callback: CB<D>,
     ) {
         self.callbacks
@@ -752,7 +779,7 @@ impl<D> EventHelper<D> {
     }
 
     /// Callback is called for any button/state combination
-    pub fn window_mouse_input_any(&mut self, callback: CBI<D, (MouseButton, ElementState)>) {
+    pub fn window_mouse_input_any(&mut self, callback: CBI<D, (MouseButton, ElementState2)>) {
         self.callbacks.window_mouse_input_any = callback;
     }
 

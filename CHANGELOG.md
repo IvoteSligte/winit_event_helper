@@ -1,3 +1,11 @@
+# 0.3.1
+
+### Breaking
+
+- Added a new struct, `ElementState2`, as a complement to `winit::Event::ElementState`.
+    It adds a `Pressed` state that is triggered on press.
+- Replaced all instances of `ElementState` with `ElementState2`
+
 # 0.3.0
 
 ### Breaking
