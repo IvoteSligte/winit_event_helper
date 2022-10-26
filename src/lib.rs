@@ -6,7 +6,7 @@
 //!
 //! winit_event_helper comes with the [EventHelper] struct, which handles all the callbacks
 //! and various miscellaneous things.
-//! 
+//!
 //! Pass your events to [EventHelper::update] and run your application calculations when it returns true.
 //! You can also add callbacks for specific winit events with the EventHelper helper functions
 //! or the [Callbacks] struct.
@@ -26,7 +26,7 @@
 //! fn main() {
 //!     let mut event_loop = EventLoop::new();
 //!     let _window = WindowBuilder::new().build(&event_loop).unwrap();
-//! 
+//!
 //!     let mut eh = EventHelper::new( Data { counter: 0 } );
 //!     
 //!     // is called whenever the given mouse button is in the given state and the window is focused
@@ -50,26 +50,26 @@
 //!         if eh.key_pressed(VirtualKeyCode::Escape) {
 //!             *control_flow = ControlFlow::Exit;
 //!         }
-//! 
+//!
 //!         // do stuff
 //!     })
 //! }
 //! ```
-//! 
+//!
 //! ## Function and field names
-//! 
+//!
 //! `winit_event_helper` has a function for adding a callback for every winit event except [Event::UserEvent].
 //! The [Callbacks] struct has fields of identical names.
-//! 
+//!
 //! These names are almost the same as their respective event names, with a few changes:
 //! - The names are completely in [snake_case](https://rust-lang.github.io/api-guidelines/naming.html)
 //!   and appropriate changes have been made as such.
 //! - `::` is replaced with `_`
 //! - `WindowEvent` is replaced with `window`
 //! - `DeviceEvent` is replaced with `device`
-//! 
+//!
 //! For a complete overview of functions, see [EventHelper].
-//! 
+//!
 //! ## Features
 #![doc = document_features::document_features!()]
 
@@ -239,7 +239,7 @@ pub struct EventHelper<D> {
 
 impl<D> EventHelper<D> {
     /// Create an EventHelper instance
-    /// 
+    ///
     /// The `data` object holds all the variables you need inside of the callback functions.
     pub fn new(data: D) -> EventHelper<D> {
         EventHelper {
@@ -259,9 +259,9 @@ impl<D> EventHelper<D> {
     }
 
     /// Create an EventHelper instance with pre-set callbacks.
-    /// 
+    ///
     /// The `data` object holds all the variables you need inside of the callback functions.
-    /// 
+    ///
     /// The `callbacks` object holds all the callback functions.
     pub fn with_callbacks(data: D, callbacks: Callbacks<D>) -> EventHelper<D> {
         EventHelper {
@@ -301,7 +301,7 @@ impl<D> EventHelper<D> {
             }
             Event::MainEventsCleared => {
                 self.steps = (self.steps.1, Instant::now());
-        
+
                 self.call_after(|eh| {
                     eh.text.clear();
                     eh.mouse_wheel = MouseScrollDelta::LineDelta(0.0, 0.0);
@@ -310,8 +310,8 @@ impl<D> EventHelper<D> {
                     eh.keys.1.clear();
                 });
 
-                return true
-            },
+                return true;
+            }
             _ => (),
         }
         false
@@ -328,11 +328,13 @@ impl<D> EventHelper<D> {
                 if let Some(key) = virtual_keycode {
                     #[cfg(feature = "save_device_inputs")]
                     self.update_keys_held(key, state);
-                    let state = self.convert_element_state_key(state, key);
-                    (self.callbacks.device_key_any)(self, (key, state));
-                    if let Some(func) = self.callbacks.device_key.get_mut(&(key, state)) {
-                        func(self);
-                    }
+
+                    element_state_callbacks(state, self.key_pressed(key), |state| {
+                        (self.callbacks.device_key_any)(self, (key, state));
+                        if let Some(func) = self.callbacks.device_key.get_mut(&(key, state)) {
+                            func(self);
+                        }
+                    });
                 }
             }
             &DeviceEvent::MouseMotion { delta } => {
@@ -364,12 +366,12 @@ impl<D> EventHelper<D> {
                 #[cfg(feature = "save_device_inputs")]
                 self.update_buttons_held(mouse_button, state);
 
-                let state = self.convert_element_state_button(state, mouse_button);
-
-                if let Some(func) = self.callbacks.device_button.get_mut(&(button, state)) {
-                    func(self);
-                }
-                (self.callbacks.device_button_any)(self, (button, state));
+                element_state_callbacks(state, self.button_pressed(mouse_button), |state| {
+                    (self.callbacks.device_button_any)(self, (button, state));
+                    if let Some(func) = self.callbacks.device_button.get_mut(&(button, state)) {
+                        func(self);
+                    }
+                });
             }
             &DeviceEvent::Text { codepoint } => {
                 #[cfg(feature = "save_device_inputs")]
@@ -395,11 +397,14 @@ impl<D> EventHelper<D> {
             &WindowEvent::MouseInput { button, state, .. } => {
                 #[cfg(not(feature = "save_device_inputs"))]
                 self.update_buttons_held(button, state);
-                let state = self.convert_element_state_button(state, button);
-                (self.callbacks.window_mouse_input_any)(self, (button, state));
-                if let Some(func) = self.callbacks.window_mouse_input.get_mut(&(button, state)) {
-                    func(self);
-                }
+
+                element_state_callbacks(state, self.button_pressed(button), |state| {
+                    (self.callbacks.window_mouse_input_any)(self, (button, state));
+                    if let Some(func) = self.callbacks.window_mouse_input.get_mut(&(button, state))
+                    {
+                        func(self);
+                    }
+                });
             }
             &WindowEvent::Moved(position) => {
                 (self.callbacks.window_moved)(self, position);
@@ -437,12 +442,15 @@ impl<D> EventHelper<D> {
                 if let Some(key) = virtual_keycode {
                     #[cfg(not(feature = "save_device_inputs"))]
                     self.update_keys_held(key, state);
-                    let state = self.convert_element_state_key(state, key);
-                    if let Some(func) = self.callbacks.window_keyboard_input.get_mut(&(key, state))
-                    {
-                        func(self);
-                    }
-                    (self.callbacks.window_keyboard_input_any)(self, (key, state));
+
+                    element_state_callbacks(state, self.key_pressed(key), |state| {
+                        (self.callbacks.window_keyboard_input_any)(self, (key, state));
+                        if let Some(func) =
+                            self.callbacks.window_keyboard_input.get_mut(&(key, state))
+                        {
+                            func(self);
+                        }
+                    });
                 }
             }
             &WindowEvent::ModifiersChanged(modifiers) => {
@@ -481,22 +489,6 @@ impl<D> EventHelper<D> {
         }
     }
 
-    fn convert_element_state_key(&self, winit_state: ElementState, key: VirtualKeyCode) -> ElementState2 {
-        match winit_state {
-            ElementState::Pressed if self.key_pressed(key) => ElementState2::Pressed,
-            ElementState::Pressed => ElementState2::Held,
-            ElementState::Released => ElementState2::Released,
-        }
-    }
-
-    fn convert_element_state_button(&self, winit_state: ElementState, button: MouseButton) -> ElementState2 {
-        match winit_state {
-            ElementState::Pressed if self.button_pressed(button) => ElementState2::Pressed,
-            ElementState::Pressed => ElementState2::Held,
-            ElementState::Released => ElementState2::Released,
-        }
-    }
-
     fn update_buttons_held(&mut self, button: MouseButton, state: ElementState) {
         match state {
             ElementState::Pressed => {
@@ -523,7 +515,8 @@ impl<D> EventHelper<D> {
 
     /// Returns the time since the mouse button was first pressed in seconds if pressed, else returns None
     pub fn button_held(&self, button: MouseButton) -> Option<f64> {
-        self.buttons.0
+        self.buttons
+            .0
             .get(&button)
             .map(|&t| t.elapsed().as_secs_f64())
     }
@@ -538,7 +531,7 @@ impl<D> EventHelper<D> {
         match self.buttons.0.get(&button) {
             Some(time_held) => {
                 time_held.elapsed().as_secs_f64() < self.steps.0.elapsed().as_secs_f64()
-            },
+            }
             None => false,
         }
     }
@@ -563,7 +556,7 @@ impl<D> EventHelper<D> {
         match self.keys.0.get(&key) {
             Some(time_held) => {
                 time_held.elapsed().as_secs_f64() < self.steps.0.elapsed().as_secs_f64()
-            },
+            }
             None => false,
         }
     }
@@ -577,7 +570,7 @@ impl<D> EventHelper<D> {
     pub fn call_after(&mut self, callback: CB<D>) {
         self.call_after.push(callback);
     }
-    
+
     /// Returns true if the window is focused
     pub fn focused(&self) -> bool {
         self.focused
@@ -831,5 +824,18 @@ impl<D> Deref for EventHelper<D> {
 impl<D> DerefMut for EventHelper<D> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.data
+    }
+}
+
+fn element_state_callbacks<F>(state: ElementState, is_pressed: bool, mut callbacks: F)
+    where F: FnMut(ElementState2) {
+    match state {
+        ElementState::Pressed => {
+            if is_pressed {
+                callbacks(ElementState2::Pressed);
+            }
+            callbacks(ElementState2::Held);
+        }
+        ElementState::Released => callbacks(ElementState2::Released),
     }
 }

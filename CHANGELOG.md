@@ -1,3 +1,9 @@
+# 0.3.2
+
+### Non-breaking
+
+- Made callbacks with trigger `ElementState2::Held` also trigger for `ElementState2::Pressed`
+
 # 0.3.1
 
 ### Breaking
