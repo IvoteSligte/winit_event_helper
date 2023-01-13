@@ -16,7 +16,7 @@ repository = "https://github.com/IvoteSligte/winit_event_helper/"
 save_device_inputs = []
 
 [dependencies]
-ahash = "0.8.0"
-winit = "0.27.2"
+ahash = "0.8.2"
+winit = "0.27.5"
 bitflags = "1.3.2"
-document-features = "0.2.6"
+document-features = "0.2.7"

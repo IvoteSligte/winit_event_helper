@@ -1,3 +1,17 @@
+# 0.4.0
+
+### Breaking
+
+- Renamed *many* functions
+- Callback functions now take the `CallbackData` struct instead of the `EventHelper` struct
+- Moved window events to `WindowCallbacks`
+- Moved device events to `DeviceCallbacks`
+- Moved general (global) events to `GeneralCallbacks`
+
+### Non-breaking
+
+- Added `Input` struct (inspired by the `bevy_input` crate)
+
 # 0.3.2
 
 ### Non-breaking
