@@ -1,92 +1,89 @@
-//! winit_event_helper is a crate for high level winit event handling
+//! winit_event_helper is a crate for simplified winit event handling
 //! using [callback functions](https://en.wikipedia.org/wiki/Callback_(computer_programming))
 //! without taking over the main loop.
 //!
 //! ## Usage
 //!
-//! winit_event_helper comes with the [event_helper::EventHelper] struct, which handles all the callbacks
+//! winit_event_helper comes with the [EventHelper] struct, which handles all the callbacks
 //! and various miscellaneous things.
 //!
-//! Pass your events to [event_helper::EventHelper::update] and run your application calculations when it returns true.
+//! Pass your events to [EventHelper::update] and run your application logic when it returns `true`.
 //! You can also add callbacks for specific winit events with the EventHelper helper functions
 //! or the [callbacks::Callbacks] struct.
 //!
 //! ## Example
 //!
 //! ```rust
-//! use winit_event_helper::prelude::*;
-//! use winit::event::{VirtualKeyCode, MouseButton};
-//! use winit::event_loop::{EventLoop, ControlFlow};
+//! use winit::event_loop::{ControlFlow, EventLoop};
 //! use winit::window::WindowBuilder;
+//! use winit_event_helper::*;
 //!
 //! struct Data {
-//!     counter: usize
+//!     counter: usize,
 //! }
 //!
 //! fn main() {
-//!     let mut event_loop = EventLoop::new();
+//!     let event_loop = EventLoop::new();
 //!     let _window = WindowBuilder::new().build(&event_loop).unwrap();
+//!     let mut eh = EventHelper::new(Data { counter: 0 });
+//!     let mut callbacks = Callbacks::new();
 //!
-//!     let mut eh = EventHelper::new( Data { counter: 0 } );
-//!     
-//!     // is called whenever the given mouse button is in the given state and the window is focused
-//!     eh.callbacks.windows.mouse_input(MouseButton::Left, State::Pressed, |data| data.counter += 1);
-//!     
-//!     // is called whenever a keyboard key is pressed and the window is focused
-//!     eh.callbacks.windows.keyboard_input_any(|_, (keycode, state)| {
-//!         if (state == State::Pressed) {
-//!             println!("{:?}", keycode);
-//!         }
-//!     });
+//!     // is called whenever one of the given inputs was just pressed
+//!     callbacks
+//!         .window
+//!         .inputs
+//!         .just_pressed([GenericInput::from(MouseButton::Left), KeyCode::Space.into()], |data, _| {
+//!             data.counter += 1
+//!         });
 //!     
 //!     event_loop.run(move |event, _, control_flow| {
-//!         // feed the events to the EventHelper struct
+//!         // feed the events to the [EventHelper] struct
 //!         // returns true when it receives [Event::MainEventsCleared]
-//!         if !eh.update(&event) {
+//!         if !eh.update(&callbacks, &event) {
 //!             return;
 //!         }
 //!
-//!         // returns true when the given key goes from 'not pressed' to 'pressed'
-//!         if eh.key_pressed(VirtualKeyCode::Escape) {
+//!         // exits the application when the key combination CTRL + ESC has been released
+//!         if eh.data.window.inputs.just_released_combination([KeyCode::Escape], Modifiers::CTRL) {
 //!             *control_flow = ControlFlow::Exit;
 //!         }
+//!
+//!         println!("{}", eh.user_data.counter);
 //!
 //!         // do stuff
 //!     })
 //! }
 //! ```
 //!
-//! ## Function names
+//! ## Functions and Callbacks
 //!
-//! `winit_event_helper` has functions for adding a callback for every winit event except [Event::UserEvent].
+//! `winit_event_helper` has functions for adding a callback for every winit event type except
+//! [winit::event::UserEvent](https://docs.rs/winit/latest/winit/event/enum.Event.html#variant.UserEvent).
+//! Callbacks are called after a step as long as a winit event of the desired type is received.
 //!
-//! For a complete overview of functions, see 
-//! [general_callbacks::GeneralCallbacks], 
-//! [device_callbacks::DeviceCallbacks] and 
-//! [window_callbacks::WindowCallbacks].
+//! For a complete overview of functions, see [callbacks].
+//!
+//! ## Keyboard and Mouse Inputs
+//!
+//! Keyboard and mouse inputs are combined and moved into the [InputData](input::InputData) struct.
+//!
+//! This can be accessed as field `inputs` on the
+//! [WindowCallbackData](crate::callbacks::WindowCallbackData) and [DeviceCallbackData](crate::callbacks::DeviceCallbackData) structs (see example).
+//!
+//! Callbacks are collected in [InputCallbacks](input::InputCallbacks).
 //!
 //! ## Features
 #![doc = document_features::document_features!()]
 
-pub mod event_helper;
-
-pub mod input;
-pub mod definitions;
-
-pub mod callback_data;
 pub mod callbacks;
+pub mod default_ahashmap;
+pub mod definitions;
+pub mod event_helper;
+pub mod input;
 
-pub mod device_callbacks;
-pub mod general_callbacks;
-pub mod window_callbacks;
+#[macro_use]
+mod macros;
 
-pub mod prelude {
-    pub use crate::callbacks::Callbacks;
-    pub use crate::event_helper::EventHelper;
-    pub use crate::callback_data::CallbackData;
-    pub use crate::input::State;
-}
-
-// TODO: docs for helper functions and structs
-// TODO: update functions such as WindowCallbacks::keyboard_input_any
-// TODO: update example
+pub use crate::callbacks::all::Callbacks;
+pub use crate::definitions::*;
+pub use crate::event_helper::EventHelper;

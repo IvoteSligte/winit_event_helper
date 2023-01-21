@@ -1,16 +1,26 @@
 # 0.4.0
 
-### Breaking
+### Revision
+
+This updates changes how the majority of the library works,
+which most likely breaks all code currently written using previous versions of the library.
+You are free to continue using older versions, but they will not be updated to support future winit releases.
+
+### Changes (incomplete)
 
 - Renamed *many* functions
 - Callback functions now take the `CallbackData` struct instead of the `EventHelper` struct
 - Moved window events to `WindowCallbacks`
 - Moved device events to `DeviceCallbacks`
 - Moved general (global) events to `GeneralCallbacks`
-
-### Non-breaking
-
-- Added `Input` struct (inspired by the `bevy_input` crate)
+- text() now returns a `String` instead of a `Vec<char>`
+- Callback structs are now generated using a dedicated macro
+- Added `Input` struct which handles keyboard and mouse inputs (inspired by the `bevy_input` crate)
+- Added support for multiple devices (feature `multiple_devices`)
+- Added support for multiple windows (feature `multiple_windows`)
+- Removed the `Quit` struct in favor of handling Event::LoopDestroyed separately from
+  WindowEvent::Destroyed and WindowEvent::CloseRequested
+- Combined `WindowEvent::Destroyed` and `WindowEvent::CloseRequested` into `QuitWindow`
 
 # 0.3.2
 
