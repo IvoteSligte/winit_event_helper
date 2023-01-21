@@ -3,59 +3,57 @@
 [![Latest Version](https://img.shields.io/crates/v/winit_event_helper.svg)](https://crates.io/crates/winit_event_helper)
 [![API](https://docs.rs/winit_event_helper/badge.svg)](https://docs.rs/winit_event_helper)
 
-winit_event_helper is a crate for high level winit event handling
+winit_event_helper is a crate for simplified winit event handling
 using [callback functions](https://en.wikipedia.org/wiki/Callback_(computer_programming))
 without taking over the main loop.
 
 ## Usage
-
 winit_event_helper comes with the `EventHelper` struct, which handles all the callbacks
 and various miscellaneous things.
 
-Pass your events to `EventHelper::update` and run your application calculations when it returns true.
+Pass your events to `EventHelper::update` and run your application logic when it returns `true`.
+
 You can also add callbacks for specific winit events with the EventHelper helper functions
 or the `Callbacks` struct.
 
 ## Example
-
 ```rust
-use winit_event_helper::{EventHelper, ElementState2};
-use winit::event::{VirtualKeyCode, MouseButton};
-use winit::event_loop::{EventLoop, ControlFlow};
+use winit::event_loop::{ControlFlow, EventLoop};
 use winit::window::WindowBuilder;
+use winit_event_helper::*;
 
 struct Data {
-    counter: usize
+    counter: usize,
 }
 
 fn main() {
-    let mut event_loop = EventLoop::new();
+    let event_loop = EventLoop::new();
     let _window = WindowBuilder::new().build(&event_loop).unwrap();
+    let mut eh = EventHelper::new(Data { counter: 0 });
+    let mut callbacks = Callbacks::new();
 
-    let mut eh = EventHelper::new( Data { counter: 0 } );
-    
-    // is called whenever the given mouse button is in the given state and the window is focused
-    eh.window_mouse_input(MouseButton::Left, ElementState2::Pressed, |data| data.counter += 1);
-    
-    // is called whenever a keyboard key is pressed and the window is focused
-    eh.window_keyboard_input_any(|_, (keycode, state)| {
-        if (state == ElementState2::Pressed) {
-            println!("{:?}", keycode);
-        }
-    });
+    // is called whenever one of the given inputs was just pressed
+    callbacks
+        .window
+        .inputs
+        .just_pressed([GenericInput::from(MouseButton::Left), KeyCode::Space.into()], |eh| {
+            eh.counter += 1
+        });
     
     event_loop.run(move |event, _, control_flow| {
-        // feed the events to the EventHelper struct
-        // returns true when it receives [Event::MainEventsCleared]
-        if !eh.update(&event) {
+        // feed the events to the `EventHelper` struct
+        // returns true when it receives `Event::MainEventsCleared`
+        if !eh.update(&callbacks, &event) {
             return;
         }
 
-        // returns true when the given key goes from 'not pressed' to 'pressed'
-        if eh.key_pressed(VirtualKeyCode::Escape) {
+        // exits the application when the key combination CTRL + ESC has been released
+        if eh.data.window.inputs.just_released_combination([KeyCode::Escape], Modifiers::CTRL) {
             *control_flow = ControlFlow::Exit;
         }
-
+        
+        println!("{}", eh.counter);
+        
         // do stuff
     })
 }

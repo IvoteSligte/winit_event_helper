@@ -8,8 +8,9 @@
 //! and various miscellaneous things.
 //!
 //! Pass your events to [EventHelper::update] and run your application logic when it returns `true`.
+//! 
 //! You can also add callbacks for specific winit events with the EventHelper helper functions
-//! or the [callbacks::Callbacks] struct.
+//! or the [Callbacks] struct.
 //!
 //! ## Example
 //!
@@ -32,8 +33,8 @@
 //!     callbacks
 //!         .window
 //!         .inputs
-//!         .just_pressed([GenericInput::from(MouseButton::Left), KeyCode::Space.into()], |data, _| {
-//!             data.counter += 1
+//!         .just_pressed([GenericInput::from(MouseButton::Left), KeyCode::Space.into()], |eh| {
+//!             eh.counter += 1
 //!         });
 //!     
 //!     event_loop.run(move |event, _, control_flow| {
@@ -48,7 +49,7 @@
 //!             *control_flow = ControlFlow::Exit;
 //!         }
 //!
-//!         println!("{}", eh.user_data.counter);
+//!         println!("{}", eh.counter);
 //!
 //!         // do stuff
 //!     })
