@@ -1,3 +1,10 @@
+# 0.4.1
+
+## Non-breaking
+
+- Renamed `time_since_previous_update` to `time_since_previous_step` and changed its functionality. 
+  It now returns the time since the previous time `EventHelper::update` returned *true*.
+
 # 0.4.0
 
 ### Revision

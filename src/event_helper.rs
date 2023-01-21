@@ -23,8 +23,8 @@ pub struct EventHelper<D> {
     call_after: Vec<CB<D>>,
     /// Stores the instants the last two [EventHelper::update]s were called.
     ///
-    /// Required for [EventHelper::time_since_previous_update]
-    last_updates: [Instant; 2],
+    /// Required for [EventHelper::time_since_previous_step]
+    last_steps: [Instant; 2],
     time_since_start: Instant,
     update_count: usize,
 }
@@ -36,7 +36,7 @@ impl<D: Clone> Clone for EventHelper<D> {
             data: self.data.clone(),
             clear_callback_data: self.clear_callback_data.clone(),
             call_after: self.call_after.clone(),
-            last_updates: self.last_updates.clone(),
+            last_steps: self.last_steps.clone(),
             time_since_start: self.time_since_start.clone(),
             update_count: self.update_count.clone(),
         }
@@ -50,7 +50,7 @@ impl<D: Default> Default for EventHelper<D> {
             data: Default::default(),
             clear_callback_data: Default::default(),
             call_after: Default::default(),
-            last_updates: [Instant::now(); 2],
+            last_steps: [Instant::now(); 2],
             time_since_start: Instant::now(),
             update_count: 0,
         }
@@ -79,7 +79,7 @@ impl<D> EventHelper<D> {
             data: Default::default(),
             clear_callback_data: false,
             call_after: vec![],
-            last_updates: [Instant::now(); 2],
+            last_steps: [Instant::now(); 2],
             time_since_start: Instant::now(),
             update_count: 0,
         }
@@ -93,7 +93,6 @@ impl<D> EventHelper<D> {
         callbacks: &Callbacks<D>,
         event: &Event<'a, E>,
     ) -> bool {
-        self.last_updates = [self.last_updates[1], Instant::now()];
         self.update_count += 1;
 
         self.call_after.clone().iter().for_each(|func| func(self));
@@ -105,6 +104,7 @@ impl<D> EventHelper<D> {
         }
 
         if *event == Event::MainEventsCleared {
+            self.last_steps = [self.last_steps[1], Instant::now()];
             self.data.clone().call_callbacks(self, callbacks);
             self.clear_callback_data = true;
             return true;
@@ -128,8 +128,8 @@ impl<D> EventHelper<D> {
         self.time_since_start.elapsed()
     }
 
-    /// Returns the time since the previous [EventHelper::update]
-    pub fn time_since_previous_update(&self) -> Duration {
-        self.last_updates[0].elapsed()
+    /// Returns the time since the previous time [EventHelper::update] returned `true`
+    pub fn time_since_previous_step(&self) -> Duration {
+        self.last_steps[0].elapsed()
     }
 }
