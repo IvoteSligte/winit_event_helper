@@ -6,6 +6,7 @@
 - Added support for `WindowEvent::CursorMoved`.
 - Added support for the `winit` `0.28.0` events `WindowEvent::TouchpadMagnify`, `WindowEvent::SmartMagnify` and `WindowEvent::TouchpadRotate`
 - Updated the example
+- Updated the `ahash` crate from version `0.8.2` to version `0.8.3`
 
 ## Breaking
 
