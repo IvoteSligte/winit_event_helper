@@ -1,3 +1,17 @@
+# 0.5.0
+
+## Non-breaking
+
+- Added combined support for `WindowEvent::CursorEntered` and `WindowEvent::CursorLeft` through the `cursor_entered` field.
+- Added support for `WindowEvent::CursorMoved`.
+- Added support for the `winit` `0.28.0` events `WindowEvent::TouchpadMagnify`, `WindowEvent::SmartMagnify` and `WindowEvent::TouchpadRotate`
+- Updated the example
+
+## Breaking
+
+- Updated `winit` to version `0.28.1`
+- Renamed `Callbacks::new()` to `Callbacks::empty()`
+
 # 0.4.1
 
 ## Non-breaking

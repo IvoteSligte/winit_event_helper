@@ -18,22 +18,23 @@
 //! use winit::event_loop::{ControlFlow, EventLoop};
 //! use winit::window::WindowBuilder;
 //! use winit_event_helper::*;
-//!
+//! 
 //! struct Data {
 //!     counter: usize,
 //! }
-//!
+//! 
 //! fn main() {
 //!     let event_loop = EventLoop::new();
 //!     let _window = WindowBuilder::new().build(&event_loop).unwrap();
+//! 
 //!     let mut eh = EventHelper::new(Data { counter: 0 });
-//!     let mut callbacks = Callbacks::new();
-//!
+//!     let mut callbacks = Callbacks::<Data>::empty();
+//! 
 //!     // is called whenever one of the given inputs was just pressed
 //!     callbacks
 //!         .window
 //!         .inputs
-//!         .just_pressed([GenericInput::from(MouseButton::Left), KeyCode::Space.into()], |eh| {
+//!         .just_pressed_all([GenericInput::from(MouseButton::Left), KeyCode::Space.into()], |eh| {
 //!             eh.counter += 1
 //!         });
 //!     
@@ -43,14 +44,14 @@
 //!         if !eh.update(&callbacks, &event) {
 //!             return;
 //!         }
-//!
+//! 
 //!         // exits the application when the key combination CTRL + ESC has been released
 //!         if eh.data.window.inputs.just_released_combination([KeyCode::Escape], Modifiers::CTRL) {
 //!             *control_flow = ControlFlow::Exit;
 //!         }
-//!
+//! 
 //!         println!("{}", eh.counter);
-//!
+//! 
 //!         // do stuff
 //!     })
 //! }

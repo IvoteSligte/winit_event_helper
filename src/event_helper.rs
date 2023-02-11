@@ -13,7 +13,7 @@ use crate::{
 /// A struct holding all the callback functions and user function data.
 /// Also has some helper functions.
 ///
-/// Create an empty instance using [EventHelper::new].
+/// Create an instance using [EventHelper::new].
 pub struct EventHelper<D> {
     /// User-supplied data that is passed as mutable reference to the event callbacks.
     pub user_data: D,
@@ -93,17 +93,16 @@ impl<D> EventHelper<D> {
         callbacks: &Callbacks<D>,
         event: &Event<'a, E>,
     ) -> bool {
-        self.update_count += 1;
-
         self.call_after.clone().iter().for_each(|func| func(self));
         self.call_after.clear();
-
+        
         if self.clear_callback_data {
             self.clear_callback_data = false;
             self.data.clear();
         }
-
+        
         if *event == Event::MainEventsCleared {
+            self.update_count += 1;
             self.last_steps = [self.last_steps[1], Instant::now()];
             self.data.clone().call_callbacks(self, callbacks);
             self.clear_callback_data = true;
@@ -114,6 +113,7 @@ impl<D> EventHelper<D> {
         false
     }
 
+    /// Returns the number of steps that have passed so far
     pub fn update_count(&self) -> usize {
         self.update_count
     }

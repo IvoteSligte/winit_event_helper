@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use winit::{
     dpi::{PhysicalPosition, PhysicalSize},
-    event::{AxisId, Ime, KeyboardInput, WindowEvent},
+    event::{AxisId, Ime, KeyboardInput, WindowEvent, TouchPhase},
     window::Theme,
 };
 
@@ -28,25 +28,40 @@ create_callbacks! {
         clr opt pub moved: PhysicalPosition<i32>,
         clr opt pub resized: PhysicalSize<u32>,
         clr opt pub cursor_state: CursorState,
+        clr opt pub cursor_entered: bool,
+        clr opt pub cursor_moved: PhysicalPosition<f64>,
         clr opt pub quit: QuitWindow,
         clr opt pub scale_factor: f64,
         clr opt pub theme: Theme,
         clr opt pub hover_cancelled: bool,
         clr opt pub mouse_wheel: (LineDelta, PixelDelta),
+        clr opt pub smart_magnify: usize,
         clr vec pub text: char,
         clr vec pub ime: Ime,
         clr vec pub touch: IdLessTouch,
         clr vec pub touchpad_pressure: (i64, f32),
+        clr vec pub touchpad_magnify: (f64, TouchPhase),
+        clr vec pub touchpad_rotate: (f32, TouchPhase),
         clr vec pub axis_motion: (AxisId, f64),
         clr set pub hovered_files: PathBuf,
         clr set pub dropped_files: PathBuf,
         clr cus pub inputs: InputData,
         #[cfg(feature="windows_with_device_ids")]
+        clr map pub cursor_entered_with_id: DeviceId => Option<bool>,
+        #[cfg(feature="windows_with_device_ids")]
+        clr map pub cursor_moved_with_id: DeviceId => Option<PhysicalPosition<f64>>,
+        #[cfg(feature="windows_with_device_ids")]
         clr map pub touch_with_id: DeviceId => Vec<IdLessTouch>,
+        #[cfg(feature="windows_with_device_ids")]
+        clr map pub touchpad_magnify_with_id: DeviceId => Vec<(f64, TouchPhase)>,
+        #[cfg(feature="windows_with_device_ids")]
+        clr map pub touchpad_rotate_with_id: DeviceId => Vec<(f32, TouchPhase)>,
+        #[cfg(feature="windows_with_device_ids")]
+        clr map pub touchpad_pressure_with_id: DeviceId => Vec<(i64, f32)>,
         #[cfg(feature="windows_with_device_ids")]
         clr map pub mouse_wheel_with_id: DeviceId => (LineDelta, PixelDelta),
         #[cfg(feature="windows_with_device_ids")]
-        clr map pub touchpad_pressure_with_id: DeviceId => Vec<(i64, f32)>,
+        clr map pub smart_magnify_with_id: DeviceId => Option<usize>,
         #[cfg(feature="windows_with_device_ids")]
         clr map pub axis_motion_with_id: DeviceId => Vec<(AxisId, f64)>,
         #[cfg(feature="windows_with_device_ids")]
@@ -190,7 +205,67 @@ impl WindowCallbackData {
                     .or_default()
                     .push((stage, pressure));
             }
-            _ => (),
+            &WindowEvent::CursorMoved {
+                device_id,
+                position,
+                ..
+            } => {
+                self.cursor_moved = Some(position);
+
+                #[cfg(feature = "windows_with_device_ids")]
+                {
+                    *self.cursor_moved_with_id.entry(device_id).or_default() = Some(position);
+
+                }
+            },
+            &WindowEvent::CursorEntered { device_id } => {
+                self.cursor_entered = Some(true);
+
+                #[cfg(feature = "windows_with_device_ids")]
+                {
+                    *self.cursor_entered_with_id.entry(device_id).or_default() = Some(true);
+                }
+            }
+            &WindowEvent::CursorLeft { device_id } => {
+                self.cursor_entered = Some(false);
+
+                #[cfg(feature = "windows_with_device_ids")]
+                {
+                    *self.cursor_entered_with_id.entry(device_id).or_default() = Some(false);
+                }
+            }
+            &WindowEvent::TouchpadMagnify {
+                device_id,
+                delta,
+                phase,
+            } => {
+                self.touchpad_magnify.push((delta, phase));
+
+                #[cfg(feature = "windows_with_device_ids")]
+                {
+                    self.touchpad_magnify_with_id.entry(device_id).or_default().push((delta, phase));
+                }
+            },
+            &WindowEvent::TouchpadRotate {
+                device_id,
+                delta,
+                phase,
+            } => {
+                self.touchpad_rotate.push((delta, phase));
+
+                #[cfg(feature = "windows_with_device_ids")]
+                {
+                    self.touchpad_rotate_with_id.entry(device_id).or_default().push((delta, phase));
+                }
+            },
+            &WindowEvent::SmartMagnify { device_id } => {
+                *self.smart_magnify.get_or_insert(0) += 1;
+
+                #[cfg(feature = "windows_with_device_ids")]
+                {
+                    *self.smart_magnify_with_id.entry(device_id).or_default() += 1;
+                }
+            },
         }
     }
 }

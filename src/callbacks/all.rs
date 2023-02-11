@@ -126,7 +126,7 @@ impl CallbackData {
 }
 
 #[derive(Clone)]
-/// A collection of callbacks. This is the only `callbacks` struct you should use directly.
+/// A collection of callbacks. This is the only `callbacks` type struct you should use directly.
 pub struct Callbacks<D> {
     pub general: GeneralCallbacks<D>,
     #[cfg(not(feature = "multiple_windows"))]
@@ -154,7 +154,7 @@ impl<D> Default for Callbacks<D> {
 }
 
 impl<D> Callbacks<D> {
-    pub fn new() -> Self {
+    pub fn empty() -> Self {
         Self::default()
     }
 }
