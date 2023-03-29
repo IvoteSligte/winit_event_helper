@@ -2,7 +2,7 @@
 name = "winit_event_helper"
 version = "0.5.0"
 edition = "2021"
-description = "Simplified winit event handling using callback functions."
+description = "Flattened winit event handling using callback functions."
 license = "MIT"
 repository = "https://github.com/IvoteSligte/winit_event_helper/"
 
