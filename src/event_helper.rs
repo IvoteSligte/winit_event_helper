@@ -8,6 +8,7 @@ use winit::event::Event;
 use crate::{
     callbacks::all::{CallbackData, Callbacks},
     definitions::CB,
+    Quit, QuitWindow,
 };
 
 /// A struct holding all the callback functions and user function data.
@@ -27,6 +28,7 @@ pub struct EventHelper<D> {
     last_steps: [Instant; 2],
     time_since_start: Instant,
     update_count: usize,
+    quit: Quit,
 }
 
 impl<D: Clone> Clone for EventHelper<D> {
@@ -39,6 +41,7 @@ impl<D: Clone> Clone for EventHelper<D> {
             last_steps: self.last_steps.clone(),
             time_since_start: self.time_since_start.clone(),
             update_count: self.update_count.clone(),
+            quit: self.quit.clone(),
         }
     }
 }
@@ -48,11 +51,12 @@ impl<D: Default> Default for EventHelper<D> {
         Self {
             user_data: Default::default(),
             data: Default::default(),
-            clear_callback_data: Default::default(),
-            call_after: Default::default(),
+            clear_callback_data: false,
+            call_after: vec![],
             last_steps: [Instant::now(); 2],
             time_since_start: Instant::now(),
             update_count: 0,
+            quit: Default::default(),
         }
     }
 }
@@ -82,6 +86,7 @@ impl<D> EventHelper<D> {
             last_steps: [Instant::now(); 2],
             time_since_start: Instant::now(),
             update_count: 0,
+            quit: Default::default(),
         }
     }
 
@@ -95,12 +100,12 @@ impl<D> EventHelper<D> {
     ) -> bool {
         self.call_after.clone().iter().for_each(|func| func(self));
         self.call_after.clear();
-        
+
         if self.clear_callback_data {
             self.clear_callback_data = false;
             self.data.clear();
         }
-        
+
         if *event == Event::MainEventsCleared {
             self.update_count += 1;
             self.last_steps = [self.last_steps[1], Instant::now()];
@@ -110,6 +115,17 @@ impl<D> EventHelper<D> {
         }
 
         self.data.update(event);
+
+        self.quit.loop_destroyed = self.data.general.loop_destroyed;
+        #[cfg(not(feature = "unique_windows"))]
+        {
+            self.quit.window = self.data.window.quit.clone().unwrap_or(QuitWindow::empty());
+        }
+        #[cfg(feature = "unique_windows")]
+        {
+            self.quit.windows = self.data.window.iter().filter_map(|(id, data)| (id, data.quit.clone())).collect()
+        }
+
         false
     }
 
@@ -131,5 +147,15 @@ impl<D> EventHelper<D> {
     /// Returns the time since the previous time [EventHelper::update] returned `true`
     pub fn time_since_previous_step(&self) -> Duration {
         self.last_steps[0].elapsed()
+    }
+
+    /// Sets the `self.quit.user_requested` to `true`
+    pub fn request_quit(&mut self) {
+        self.quit.user_requested = true;
+    }
+
+    /// Returns the quit states of the application
+    pub fn quit(&self) -> Quit {
+        self.quit.clone()
     }
 }

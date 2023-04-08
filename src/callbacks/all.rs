@@ -1,15 +1,15 @@
 use winit::event::Event;
 
-#[cfg(feature = "multiple_devices")]
+#[cfg(feature = "unique_devices")]
 use winit::event::DeviceId;
 
-#[cfg(feature = "multiple_windows")]
+#[cfg(feature = "unique_windows")]
 use winit::event::WindowId;
 
-#[cfg(any(feature = "multiple_windows", feature = "multiple_devices"))]
+#[cfg(any(feature = "unique_windows", feature = "unique_devices"))]
 use ahash::AHashMap;
 
-#[cfg(any(feature = "multiple_windows", feature = "multiple_devices"))]
+#[cfg(any(feature = "unique_windows", feature = "unique_devices"))]
 use crate::default_ahashmap::DefaultAHashMap;
 
 use crate::{definitions::CallbackCallable, EventHelper};
@@ -26,13 +26,13 @@ use super::{
 /// This struct is passed to callback functions.
 pub struct CallbackData {
     pub general: GeneralCallbackData,
-    #[cfg(not(feature = "multiple_windows"))]
+    #[cfg(not(feature = "unique_windows"))]
     pub window: WindowCallbackData,
-    #[cfg(feature = "multiple_windows")]
+    #[cfg(feature = "unique_windows")]
     pub windows: DefaultAHashMap<WindowId, WindowCallbackData>,
-    #[cfg(not(feature = "multiple_devices"))]
+    #[cfg(not(feature = "unique_devices"))]
     pub device: DeviceCallbackData,
-    #[cfg(feature = "multiple_devices")]
+    #[cfg(feature = "unique_devices")]
     pub devices: DefaultAHashMap<DeviceId, DeviceCallbackData>,
 }
 
@@ -46,7 +46,7 @@ impl CallbackData {
 
         self.window.call_callbacks(event_helper, &callbacks.window);
 
-        #[cfg(feature = "multiple_windows")]
+        #[cfg(feature = "unique_windows")]
         self.windows
             .iter()
             .filter_map(|(window_id, window_callback_data)| {
@@ -62,7 +62,7 @@ impl CallbackData {
 
         self.device.call_callbacks(event_helper, &callbacks.device);
 
-        #[cfg(feature = "multiple_devices")]
+        #[cfg(feature = "unique_devices")]
         event_helper
             .callback_data
             .devices
@@ -80,18 +80,18 @@ impl CallbackData {
     }
 
     pub fn clear(&mut self) {
-        #[cfg(not(feature = "multiple_windows"))]
+        #[cfg(not(feature = "unique_windows"))]
         self.window.clear();
 
-        #[cfg(feature = "multiple_windows")]
+        #[cfg(feature = "unique_windows")]
         self.windows
             .values_mut()
             .for_each(WindowCallbackData::clear);
 
-        #[cfg(not(feature = "multiple_devices"))]
+        #[cfg(not(feature = "unique_devices"))]
         self.device.clear();
 
-        #[cfg(feature = "multiple_devices")]
+        #[cfg(feature = "unique_devices")]
         self.devices
             .values_mut()
             .for_each(DeviceCallbackData::clear);
@@ -101,20 +101,22 @@ impl CallbackData {
     pub fn update<'a, E>(&mut self, event: &Event<'a, E>) {
         match event {
             Event::WindowEvent { event, window_id } => {
-                #[cfg(not(feature = "multiple_windows"))]
-                self.window.update(event);
-
-                #[cfg(feature = "multiple_windows")]
+                #[cfg(not(feature = "unique_windows"))]
+                {
+                    self.window.update(event);
+                }
+                #[cfg(feature = "unique_windows")]
                 {
                     let window = self.windows.entry(*window_id).or_default();
                     window.update(event);
                 }
             }
             Event::DeviceEvent { event, device_id } => {
-                #[cfg(not(feature = "multiple_devices"))]
-                self.device.update(event);
-
-                #[cfg(feature = "multiple_devices")]
+                #[cfg(not(feature = "unique_devices"))]
+                {
+                    self.device.update(event);
+                }
+                #[cfg(feature = "unique_devices")]
                 {
                     let device = self.devices.entry(*device_id).or_default();
                     device.update(event);
@@ -129,13 +131,13 @@ impl CallbackData {
 /// A collection of callbacks. This is the only `callbacks` type struct you should use directly.
 pub struct Callbacks<D> {
     pub general: GeneralCallbacks<D>,
-    #[cfg(not(feature = "multiple_windows"))]
+    #[cfg(not(feature = "unique_windows"))]
     pub window: WindowCallbacks<D>,
-    #[cfg(feature = "multiple_windows")]
+    #[cfg(feature = "unique_windows")]
     pub windows: DefaultAHashMap<WindowId, WindowCallbacks<D>>,
-    #[cfg(not(feature = "multiple_devices"))]
+    #[cfg(not(feature = "unique_devices"))]
     pub device: DeviceCallbacks<D>,
-    #[cfg(feature = "multiple_devices")]
+    #[cfg(feature = "unique_devices")]
     pub devices: DefaultAHashMap<DeviceId, DeviceCallbacks<D>>,
 }
 
@@ -144,10 +146,10 @@ impl<D> Default for Callbacks<D> {
         Self {
             general: Default::default(),
             window: Default::default(),
-            #[cfg(feature = "multiple_windows")]
+            #[cfg(feature = "unique_windows")]
             windows: Default::default(),
             device: Default::default(),
-            #[cfg(feature = "multiple_devices")]
+            #[cfg(feature = "unique_devices")]
             devices: Default::default(),
         }
     }

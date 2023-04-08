@@ -1,3 +1,9 @@
+# UNRELEASED
+
+## Non-breaking
+
+- Added `Quit` struct with top-level access for storing user and winit quit requests
+
 # 0.5.0
 
 ## Non-breaking

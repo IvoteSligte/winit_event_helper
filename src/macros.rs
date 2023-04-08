@@ -30,7 +30,7 @@ macro_rules! __call_callback {
         }
     };
     (opt, $self:ident, $event_helper:ident, $callbacks:ident, $param:ident) => {
-        if let Some(value) = $self.$param {
+        if let Some(value) = $self.$param.clone() {
             ($callbacks.$param)($event_helper, value);
         }
     };

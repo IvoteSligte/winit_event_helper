@@ -1,5 +1,10 @@
 use std::ops::AddAssign;
 
+#[cfg(feature = "unique_windows")]
+use ahash::AHashMap;
+#[cfg(feature = "unique_windows")]
+use winit::window::WindowId;
+
 use bitflags::bitflags;
 use winit::{
     dpi::PhysicalPosition,
@@ -16,23 +21,39 @@ pub type CB<D> = fn(&mut EventHelper<D>);
 pub type CBI<D, I> = fn(&mut EventHelper<D>, I);
 
 bitflags! {
+    #[derive(Debug, Clone, PartialEq, Eq)]
     pub struct QuitWindow: u8 {
         const DESTROYED       = 0b0000_0001;
         const CLOSE_REQUESTED = 0b0000_0010;
     }
 }
 
-bitflags! {
-    /// Bitflags for quit requests
-    pub struct Quit: u8 {
-        const USER_REQUESTED = 0b0000_0001;
-        const LOOP_DESTROYED = 0b0000_0010;
-    }
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Quit {
+    pub loop_destroyed: bool,
+    #[cfg(not(feature = "unique_windows"))]
+    pub window: QuitWindow,
+    #[cfg(feature = "unique_windows")]
+    pub windows: AHashMap<WindowId, QuitWindow>,
+    pub user_requested: bool,
 }
 
 impl Default for Quit {
     fn default() -> Self {
-        Quit::empty()
+        Self {
+            loop_destroyed: Default::default(),
+            #[cfg(not(feature = "unique_windows"))]
+            window: QuitWindow::empty(),
+            #[cfg(feature = "unique_windows")]
+            windows: Default::default(),
+            user_requested: Default::default(),
+        }
+    }
+}
+
+impl Quit {
+    pub fn any(&self) -> bool {
+        self.loop_destroyed || !self.window.is_empty() || self.user_requested
     }
 }
 
